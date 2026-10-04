@@ -567,13 +567,6 @@ export default function App() {
         setIsCascading(true);
         setWinningTileIds(currentStep.winningTileIds);
 
-        if (currentStep.multiplier > 1) {
-          setActiveMultiplierDrop({
-            value: currentStep.multiplier,
-            id: `${stepIndex}_${Date.now()}`,
-          });
-        }
-
         const clusterParts = currentStep.winningWays.map((w) => `${w.count} ${w.symbol}`).join(' + ');
         if (isFreeSpins && currentStep.multiplier > 1) {
           setStatusMessage(`${clusterParts} (FS X${currentStep.multiplier}) +${currency === 'IDR' ? 'Rp ' : '$'}${currentStep.stepWin.toLocaleString()}`);
@@ -648,10 +641,26 @@ export default function App() {
               setWinAnimStage('IDLE');
               setHasWildWin(false);
 
-              const pauseAfterShatter = isTurbo ? 120 : 200;
+              // URUTAN WAJIB:
+              // Multiplier muncul -> turun ke tengah -> membesar/impact di tengah -> jatuh cepat ke papan -> multiplier diterapkan & kemenangan dihitung -> BARU simbol/cascade berikutnya bergerak
+              const hasMultiplierAnimation = currentStep.multiplier > 1;
+              if (hasMultiplierAnimation) {
+                setActiveMultiplierDrop({
+                  value: currentStep.multiplier,
+                  id: `${stepIndex}_${Date.now()}`,
+                });
+              }
+
+              const multiplierAnimDuration = hasMultiplierAnimation
+                ? isTurbo
+                  ? 680
+                  : 980
+                : isTurbo
+                ? 120
+                : 200;
 
               setTimeout(() => {
-                // (d) NEW SYMBOL DROP: SIMBOL BARU & BERGESER MULAI TURUN DARI ATAS MENGISI RUANG KOSONG
+                // (d) NEW SYMBOL DROP: BARU SETELAH MULTIPLIER ANIMATION SELESAI, SIMBOL BARU MULAI TURUN MENGISI RUANG KOSONG
                 const nextSourceGrid = steps[stepIndex + 1]?.grid ?? result.finalGrid;
                 const newTileIdSet = new Set(currentStep.newTiles.map((t) => t.id));
 
@@ -714,7 +723,7 @@ export default function App() {
                   stepIndex++;
                   playNextStep();
                 }, tumbleDropWait);
-              }, pauseAfterShatter);
+              }, multiplierAnimDuration);
             }, shatterTime);
           }, shootingHolesTime);
         }, expandTime);
@@ -915,6 +924,7 @@ export default function App() {
             currentWin={currentWin}
             currency={currency}
             language={language}
+            isTurbo={isTurbo}
             activeMultiplierDrop={activeMultiplierDrop}
             onMultiplierImpact={() => {}}
           />
