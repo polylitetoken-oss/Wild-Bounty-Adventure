@@ -1,24 +1,52 @@
-import React from 'react';
-import { Language, TRANSLATIONS } from '../utils/translations';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Language } from '../utils/translations';
+import { sound } from '../utils/soundEngine';
 
 interface HorseshoeMessageBannerProps {
   message: string;
-  isFreeSpins: boolean;
-  remainingFreeSpins: number;
+  currentMultiplier: number;
   currentWin: number;
   currency: 'USD' | 'IDR';
   language?: Language;
+  activeMultiplierDrop?: { value: number; id: string } | null;
+  onMultiplierImpact?: () => void;
 }
 
 export const HorseshoeMessageBanner: React.FC<HorseshoeMessageBannerProps> = ({
   message,
-  isFreeSpins,
-  remainingFreeSpins,
+  currentMultiplier = 1,
   currentWin,
   currency,
-  language = 'ID',
+  activeMultiplierDrop = null,
+  onMultiplierImpact,
 }) => {
-  const t = TRANSLATIONS[language] || TRANSLATIONS.ID;
+  const [impactStage, setImpactStage] = useState<'NONE' | 'FALLING' | 'IMPACTED'>('NONE');
+
+  useEffect(() => {
+    if (!activeMultiplierDrop) {
+      setImpactStage('NONE');
+      return;
+    }
+
+    setImpactStage('FALLING');
+
+    // Multiplier falls into plaque (280ms), then impacts inside plaque
+    const fallTimer = setTimeout(() => {
+      setImpactStage('IMPACTED');
+      sound.playCashRegisterCring();
+      if (onMultiplierImpact) onMultiplierImpact();
+
+      const resetTimer = setTimeout(() => {
+        setImpactStage('NONE');
+      }, 350);
+
+      return () => clearTimeout(resetTimer);
+    }, 280);
+
+    return () => clearTimeout(fallTimer);
+  }, [activeMultiplierDrop?.id]);
+
   const formattedWin =
     currency === 'IDR'
       ? `Rp ${currentWin.toLocaleString('id-ID')}`
@@ -37,14 +65,12 @@ export const HorseshoeMessageBanner: React.FC<HorseshoeMessageBannerProps> = ({
               <stop offset="100%" stopColor="#78350f" />
             </linearGradient>
           </defs>
-          {/* Horseshoe U-shape */}
           <path
             d="M 6, 26 C 4, 18 6, 6 16, 6 C 26, 6 28, 18 26, 26 L 21, 25 C 22, 18 20, 11 16, 11 C 12, 11 10, 18 11, 25 Z"
             fill="url(#horseshoeGold)"
             stroke="#451a03"
             strokeWidth="1.2"
           />
-          {/* Nail Holes */}
           <circle cx="8.5" cy="12" r="0.9" fill="#1e0e05" />
           <circle cx="8" cy="17" r="0.9" fill="#1e0e05" />
           <circle cx="9" cy="22" r="0.9" fill="#1e0e05" />
@@ -55,7 +81,7 @@ export const HorseshoeMessageBanner: React.FC<HorseshoeMessageBannerProps> = ({
       </div>
 
       {/* SVG BEVELED WOODEN BANNER WITH GOLD TRIM */}
-      <div className="relative z-10">
+      <div className="relative z-10 overflow-visible">
         <svg viewBox="0 0 440 68" className="w-full h-auto drop-shadow-md pointer-events-none">
           <defs>
             <linearGradient id="plaqueWoodGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -98,35 +124,67 @@ export const HorseshoeMessageBanner: React.FC<HorseshoeMessageBannerProps> = ({
           <circle cx="406" cy="48" r="2.2" fill="#d97706" stroke="#291104" strokeWidth="0.6" />
         </svg>
 
-        {/* CONTENT INSIDE THE PLAQUE */}
-        <div className="absolute inset-0 flex items-center justify-center px-4 pt-1 pointer-events-none">
-          {isFreeSpins ? (
-            /* Free Spins Counter: SISA SPIN strictly contained */
-            <div className="flex items-center justify-center gap-2 max-w-full overflow-hidden">
-              <span className="text-xs sm:text-sm font-western font-black text-amber-300 tracking-wider uppercase drop-shadow">
-                {t.remainingSpins}:
-              </span>
-              <span className="text-xl sm:text-2xl font-western font-black text-gold-gradient drop-shadow-[0_2px_8px_rgba(245,197,66,0.9)] tabular-nums">
-                {remainingFreeSpins}
-              </span>
-            </div>
-          ) : currentWin > 0 ? (
-            /* WIN DISPLAY */
+        {/* CONTENT INSIDE THE PLAQUE (MULTIPLIER BOARD) */}
+        <div className="absolute inset-0 flex items-center justify-center px-4 pt-1 pointer-events-none overflow-visible">
+          {/* FALLING MULTIPLIER NUMBER INTO PLAQUE */}
+          <AnimatePresence>
+            {impactStage === 'FALLING' && activeMultiplierDrop && (
+              <motion.div
+                key={activeMultiplierDrop.id}
+                initial={{ y: -65, scale: 1.6, opacity: 0 }}
+                animate={{ y: 0, scale: 1.1, opacity: 1 }}
+                exit={{ scale: 1.5, opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
+                className="absolute flex items-center justify-center z-30"
+              >
+                <div className="px-3.5 py-1 rounded-xl bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-600 border-2 border-yellow-100 shadow-[0_0_20px_rgba(253,224,71,0.95)] flex items-center gap-1">
+                  <span className="font-western font-black text-2xl sm:text-3xl text-stone-950 tracking-wider drop-shadow">
+                    ×{activeMultiplierDrop.value}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* MULTIPLIER IMPACT / SHATTER FLASH INSIDE PLAQUE */}
+          <AnimatePresence>
+            {impactStage === 'IMPACTED' && activeMultiplierDrop && (
+              <motion.div
+                initial={{ scale: 0.8, opacity: 1 }}
+                animate={{ scale: 1.8, opacity: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="absolute w-24 h-12 rounded-full bg-radial from-yellow-200 via-amber-400 to-transparent blur-sm z-30"
+              />
+            )}
+          </AnimatePresence>
+
+          {/* MAIN PLAQUE DISPLAY (WIN AMOUNT / MULTIPLIER / STATUS MESSAGE) */}
+          {currentWin > 0 ? (
             <div className="flex items-center justify-center gap-2 sm:gap-3 max-w-full overflow-hidden">
               <div className="flex flex-col items-end leading-none">
                 <span className="text-[10px] sm:text-[11px] font-western font-extrabold text-[#d4963e] tracking-widest uppercase">
-                  TOTAL
+                  TOTAL WIN
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-western font-extrabold text-[#d4963e] tracking-widest uppercase">
-                  {language === 'ID' ? 'MENANG' : 'WIN'}
-                </span>
+                {currentMultiplier > 1 && (
+                  <span className="text-[9px] sm:text-[10px] font-western font-bold text-amber-300">
+                    MULTIPLIER ×{currentMultiplier}
+                  </span>
+                )}
               </div>
               <span className="text-xl sm:text-2xl font-western font-black text-gold-gradient tabular-nums drop-shadow-[0_2px_6px_rgba(245,197,66,0.9)]">
                 {formattedWin}
               </span>
             </div>
+          ) : currentMultiplier > 1 ? (
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xs sm:text-sm font-western font-extrabold text-amber-300 tracking-wider uppercase drop-shadow">
+                MULTIPLIER BOARD:
+              </span>
+              <span className="text-xl sm:text-2xl font-western font-black text-gold-gradient drop-shadow-[0_2px_8px_rgba(245,197,66,0.9)] tabular-nums">
+                ×{currentMultiplier}
+              </span>
+            </div>
           ) : (
-            /* IDLE STATUS MESSAGE */
             <div className="font-western text-xs sm:text-sm font-extrabold text-amber-200 tracking-wider uppercase drop-shadow">
               {message}
             </div>

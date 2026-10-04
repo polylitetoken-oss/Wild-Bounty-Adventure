@@ -6,45 +6,44 @@ interface HangingMultiplierSignProps {
   isFreeSpins: boolean;
 }
 
-const SLOT_WIDTH = 68;
-const VIEWPORT_WIDTH = 340;
-const CENTER_OFFSET = (VIEWPORT_WIDTH - SLOT_WIDTH) / 2; // 136px
-
-// Pre-generated static array of numbers 1 to 100
-const MULTIPLIER_NUMBERS = Array.from({ length: 100 }, (_, i) => i + 1);
-
 export const HangingMultiplierSign: React.FC<HangingMultiplierSignProps> = ({
   currentMultiplier,
   isFreeSpins,
 }) => {
-  // Translate the fixed number track so currentMultiplier is exactly centered
-  const clampedMultiplier = Math.max(1, Math.min(100, currentMultiplier));
-  const targetX = CENTER_OFFSET - (clampedMultiplier - 1) * SLOT_WIDTH;
+  // 5 dynamic multiplier values: [curr-2, curr-1, curr, curr+1, curr+2]
+  const visibleValues = [-2, -1, 0, 1, 2].map((offset) => {
+    const val = currentMultiplier + offset;
+    return {
+      offset,
+      val,
+      visible: val >= 1,
+    };
+  });
 
   return (
-    <div className="relative w-full max-w-[540px] sm:max-w-[560px] mx-auto select-none pt-0.5 pb-0.5 pointer-events-none">
-      {/* 1. METALLIC CHAINS - 100% STATIC */}
-      <div className="absolute -top-3.5 left-10 flex flex-col items-center z-10 pointer-events-none">
-        <div className="w-2.5 h-4.5 rounded border-[1.5px] border-[#d89648] bg-gradient-to-b from-[#7a3f12] to-[#221208] shadow-sm" />
-        <div className="w-2.5 h-4.5 -mt-1.5 rounded border-[1.5px] border-[#fde047] bg-gradient-to-b from-[#b45309] to-[#3a1d0d] shadow-sm" />
-        <div className="w-4 h-4 -mt-1.5 rounded-full border-2 border-[#fffbeb] bg-gradient-to-b from-[#d97706] to-[#451a03] shadow-md flex items-center justify-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#fffbeb] shadow-[0_0_4px_#fff]" />
+    <div className="relative w-full max-w-[500px] sm:max-w-[530px] mx-auto select-none pt-0 pb-1 pointer-events-none z-10">
+      {/* 1. METALLIC CHAINS - CONNECTED FLUSH TO TOP HEADER */}
+      <div className="absolute -top-2 left-10 flex flex-col items-center z-10 pointer-events-none">
+        <div className="w-2.5 h-3.5 rounded border-[1.5px] border-[#d89648] bg-gradient-to-b from-[#7a3f12] to-[#221208] shadow-sm" />
+        <div className="w-2.5 h-3.5 -mt-1 rounded border-[1.5px] border-[#fde047] bg-gradient-to-b from-[#b45309] to-[#3a1d0d] shadow-sm" />
+        <div className="w-3.5 h-3.5 -mt-1 rounded-full border-2 border-[#fffbeb] bg-gradient-to-b from-[#d97706] to-[#451a03] shadow-md flex items-center justify-center">
+          <div className="w-1 h-1 rounded-full bg-[#fffbeb] shadow-[0_0_4px_#fff]" />
         </div>
       </div>
 
-      <div className="absolute -top-3.5 right-10 flex flex-col items-center z-10 pointer-events-none">
-        <div className="w-2.5 h-4.5 rounded border-[1.5px] border-[#d89648] bg-gradient-to-b from-[#7a3f12] to-[#221208] shadow-sm" />
-        <div className="w-2.5 h-4.5 -mt-1.5 rounded border-[1.5px] border-[#fde047] bg-gradient-to-b from-[#b45309] to-[#3a1d0d] shadow-sm" />
-        <div className="w-4 h-4 -mt-1.5 rounded-full border-2 border-[#fffbeb] bg-gradient-to-b from-[#d97706] to-[#451a03] shadow-md flex items-center justify-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#fffbeb] shadow-[0_0_4px_#fff]" />
+      <div className="absolute -top-2 right-10 flex flex-col items-center z-10 pointer-events-none">
+        <div className="w-2.5 h-3.5 rounded border-[1.5px] border-[#d89648] bg-gradient-to-b from-[#7a3f12] to-[#221208] shadow-sm" />
+        <div className="w-2.5 h-3.5 -mt-1 rounded border-[1.5px] border-[#fde047] bg-gradient-to-b from-[#b45309] to-[#3a1d0d] shadow-sm" />
+        <div className="w-3.5 h-3.5 -mt-1 rounded-full border-2 border-[#fffbeb] bg-gradient-to-b from-[#d97706] to-[#451a03] shadow-md flex items-center justify-center">
+          <div className="w-1 h-1 rounded-full bg-[#fffbeb] shadow-[0_0_4px_#fff]" />
         </div>
       </div>
 
-      {/* 2. ARCHED WOODEN SIGN - 100% STATIC (TETAP DIAM TIDAK BERGESER) */}
+      {/* 2. ARCHED WOODEN SIGN SVG BASE (20% Reduced Height, Clean Responsive Scale) */}
       <div className="relative mx-1">
         <svg
-          viewBox="0 0 440 92"
-          className="w-full h-auto drop-shadow-[0_8px_24px_rgba(0,0,0,0.9)] pointer-events-none"
+          viewBox="0 0 440 74"
+          className="w-full h-auto drop-shadow-[0_6px_20px_rgba(0,0,0,0.9)] pointer-events-none"
         >
           <defs>
             <linearGradient id="signWoodGradHD" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -78,7 +77,7 @@ export const HangingMultiplierSign: React.FC<HangingMultiplierSignProps> = ({
 
           {/* Main Outer Beveled Frame */}
           <path
-            d="M 20, 26 Q 130, 38 220, 18 Q 310, 38 420, 26 L 426, 68 Q 310, 83 220, 85 Q 130, 83 14, 68 Z"
+            d="M 20, 20 Q 130, 30 220, 14 Q 310, 30 420, 20 L 425, 56 Q 310, 68 220, 70 Q 130, 68 15, 56 Z"
             fill="url(#signBronzeGradHD)"
             stroke="#120602"
             strokeWidth="2.5"
@@ -87,7 +86,7 @@ export const HangingMultiplierSign: React.FC<HangingMultiplierSignProps> = ({
 
           {/* Inner Wood Plank */}
           <path
-            d="M 23, 28 Q 130, 40 220, 21 Q 310, 40 417, 28 L 423, 65 Q 310, 80 220, 82 Q 130, 80 17, 65 Z"
+            d="M 23, 22 Q 130, 32 220, 16 Q 310, 32 417, 22 L 422, 53 Q 310, 65 220, 67 Q 130, 65 18, 53 Z"
             fill="url(#signWoodGradHD)"
             stroke="#200d04"
             strokeWidth="1.5"
@@ -95,7 +94,7 @@ export const HangingMultiplierSign: React.FC<HangingMultiplierSignProps> = ({
 
           {/* Fine Gold Inlay Accent Trace */}
           <path
-            d="M 27, 31 Q 130, 42 220, 24 Q 310, 42 413, 31 L 419, 63 Q 310, 77 220, 79 Q 130, 77 21, 63 Z"
+            d="M 27, 25 Q 130, 34 220, 19 Q 310, 34 413, 25 L 418, 51 Q 310, 62 220, 64 Q 130, 62 22, 51 Z"
             fill="none"
             stroke="url(#signGoldInlayHD)"
             strokeWidth="1.5"
@@ -104,80 +103,74 @@ export const HangingMultiplierSign: React.FC<HangingMultiplierSignProps> = ({
           />
 
           {/* Perimeter Bronze Rivets */}
-          <g transform="translate(28, 36)">
-            <circle r="4" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
-            <circle r="1.3" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
+          <g transform="translate(28, 28)">
+            <circle r="3.5" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
+            <circle r="1.1" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
           </g>
-          <g transform="translate(412, 36)">
-            <circle r="4" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
-            <circle r="1.3" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
+          <g transform="translate(412, 28)">
+            <circle r="3.5" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
+            <circle r="1.1" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
           </g>
-          <g transform="translate(24, 62)">
-            <circle r="4" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
-            <circle r="1.3" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
+          <g transform="translate(24, 52)">
+            <circle r="3.5" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
+            <circle r="1.1" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
           </g>
-          <g transform="translate(416, 62)">
-            <circle r="4" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
-            <circle r="1.3" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
+          <g transform="translate(416, 52)">
+            <circle r="3.5" fill="url(#signRivetGradHD)" stroke="#451a03" strokeWidth="1" />
+            <circle r="1.1" fill="#fffbeb" opacity="0.8" cx="-1" cy="-1" />
           </g>
 
           {/* Chain Connection Rings */}
-          <circle cx="70" cy="30" r="5" fill="#241208" stroke="url(#signBronzeGradHD)" strokeWidth="2" />
-          <circle cx="370" cy="30" r="5" fill="#241208" stroke="url(#signBronzeGradHD)" strokeWidth="2" />
+          <circle cx="70" cy="24" r="4.5" fill="#241208" stroke="url(#signBronzeGradHD)" strokeWidth="1.8" />
+          <circle cx="370" cy="24" r="4.5" fill="#241208" stroke="url(#signBronzeGradHD)" strokeWidth="1.8" />
         </svg>
 
-        {/* 3. MULTIPLIER VIEWPORT AREA */}
+        {/* 3. MULTIPLIER VIEWPORT AREA: Lensa tepat di tengah papan, glow stacked di belakang, angka di atas */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div
-            className="overflow-hidden relative flex items-center justify-center -translate-y-0.5"
-            style={{ width: `${VIEWPORT_WIDTH}px`, height: '54px' }}
-          >
-            {/* FIXED STATIONARY GOLD FOCUS FRAME & GLOW (TETAP DIAM DI POSISI TENGAH) */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none flex items-center justify-center">
-              {/* Stationary Gold Radiance Glow */}
-              <div className="w-24 h-14 rounded-full bg-radial from-amber-400/50 via-yellow-500/20 to-transparent blur-md pointer-events-none" />
+          <div className="relative w-[84%] max-w-[340px] h-[46px] flex items-center justify-center overflow-visible">
+            {/* (a) FIXED GOLD FOCUS FRAME & GLOW: Ditumpuk tepat di titik yang sama di tengah (z-0), tanpa tanda ★ */}
+            <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none">
+              {/* Stationary Gold Radiance Glow - Absolute Behind Lens */}
+              <div className="absolute w-24 h-12 rounded-full bg-radial from-amber-400/50 via-yellow-500/18 to-transparent blur-md pointer-events-none" />
 
-              {/* Stationary 3D Embossed Gold Lens Frame */}
-              <div className="relative w-[72px] h-[38px] rounded-xl border-2 border-amber-300 shadow-[0_0_16px_rgba(245,197,66,0.85),inset_0_1px_4px_rgba(255,255,255,0.7)] bg-gradient-to-b from-[#4a220c]/60 via-transparent to-black/50 flex items-center justify-between px-2">
-                <span className="text-[10px] text-yellow-300 font-bold">★</span>
-                <span className="text-[10px] text-yellow-300 font-bold">★</span>
-              </div>
+              {/* Clean Gold Lens Frame Border (No ★ Stars) */}
+              <div className="relative w-[72px] sm:w-[80px] h-[32px] sm:h-[36px] rounded-xl border-2 border-amber-300 shadow-[0_0_14px_rgba(245,197,66,0.85)] bg-amber-950/25 pointer-events-none" />
             </div>
 
-            {/* ONLY THE NUMBERS MOVE HORIZONTALLY THROUGH THE FIXED CENTER FRAME */}
+            {/* (b) 5 DYNAMIC MULTIPLIER VALUES: Di atas bingkai fokus (z-20), angka aktif tepat di tengah lensa */}
             <motion.div
-              className="absolute top-0 bottom-0 flex items-center z-10"
-              animate={{ x: targetX }}
+              key={currentMultiplier}
+              initial={{ scale: 0.92, opacity: 0.8 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{
                 type: 'spring',
-                stiffness: 300,
-                damping: 30,
-                mass: 0.8,
+                stiffness: 350,
+                damping: 25,
               }}
-              style={{ left: 0 }}
+              className="relative z-20 w-full grid grid-cols-5 items-center justify-items-center"
             >
-              {MULTIPLIER_NUMBERS.map((val) => {
-                const isCurrent = val === currentMultiplier;
-                const distance = Math.abs(val - currentMultiplier);
+              {visibleValues.map((item) => {
+                const isCenter = item.offset === 0;
+
+                if (!item.visible) {
+                  return <div key={item.offset} className="w-full" />;
+                }
 
                 return (
                   <div
-                    key={val}
-                    className="flex items-center justify-center shrink-0"
-                    style={{
-                      width: `${SLOT_WIDTH}px`,
-                      height: '100%',
-                      opacity: isCurrent ? 1 : Math.max(0.15, 0.65 - distance * 0.18),
-                    }}
+                    key={item.offset}
+                    className="flex items-center justify-center w-full select-none"
                   >
                     <span
-                      className={`font-western font-black tracking-wider transition-all duration-200 select-none ${
-                        isCurrent
-                          ? 'text-2xl sm:text-3xl text-gold-gradient drop-shadow-[0_2px_8px_rgba(245,197,66,0.95)] scale-110'
-                          : 'text-lg sm:text-xl text-[#d4963e]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]'
+                      className={`font-western font-black tracking-tight transition-all duration-200 ${
+                        isCenter
+                          ? 'text-xl sm:text-2xl text-gold-gradient drop-shadow-[0_2px_8px_rgba(245,197,66,0.95)] scale-110'
+                          : Math.abs(item.offset) === 1
+                          ? 'text-xs sm:text-sm text-amber-300/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] scale-90'
+                          : 'text-[10px] sm:text-xs text-[#d4963e]/35 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] scale-75'
                       }`}
                     >
-                      {val}×
+                      {item.val}×
                     </span>
                   </div>
                 );
@@ -189,3 +182,4 @@ export const HangingMultiplierSign: React.FC<HangingMultiplierSignProps> = ({
     </div>
   );
 };
+

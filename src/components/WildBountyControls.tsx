@@ -153,6 +153,8 @@ export const WildBountyControls: React.FC<WildBountyControlsProps> = ({
   onOpenMenu,
 }) => {
   const t = TRANSLATIONS[language] || TRANSLATIONS.ID;
+  const [isMinusActive, setIsMinusActive] = React.useState(false);
+  const [isPlusActive, setIsPlusActive] = React.useState(false);
 
   const formatVal = (num: number) => {
     if (currency === 'IDR') {
@@ -162,11 +164,17 @@ export const WildBountyControls: React.FC<WildBountyControlsProps> = ({
   };
 
   const handleDecreaseWithSound = () => {
+    if (isSpinning) return;
+    setIsMinusActive(true);
+    setTimeout(() => setIsMinusActive(false), 220);
     sound.playBetChange();
     onDecreaseBet();
   };
 
   const handleIncreaseWithSound = () => {
+    if (isSpinning) return;
+    setIsPlusActive(true);
+    setTimeout(() => setIsPlusActive(false), 220);
     sound.playBetChange();
     onIncreaseBet();
   };
@@ -335,27 +343,94 @@ export const WildBountyControls: React.FC<WildBountyControlsProps> = ({
 
             {/* Minus Button (-) */}
             <button
+              type="button"
+              tabIndex={-1}
               disabled={isSpinning || bet <= 400}
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                (e.currentTarget as HTMLButtonElement)?.blur();
+                if (isSpinning) return;
                 handleDecreaseWithSound();
               }}
-              className="flex items-center justify-center w-13.5 h-13.5 sm:w-15.5 sm:h-15.5 rounded-full bg-gradient-to-b from-[#3a2010] to-[#1a0e07] border-2 border-[#d4963e] text-amber-200 hover:brightness-115 active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-xl touch-manipulation select-none"
+              onFocus={(e) => {
+                (e.currentTarget as HTMLButtonElement)?.blur();
+              }}
+              className={`flex items-center justify-center w-13.5 h-13.5 sm:w-15.5 sm:h-15.5 rounded-full border-2 transition-all cursor-pointer shadow-xl touch-manipulation select-none disabled:pointer-events-none disabled:opacity-40 ${
+                isMinusActive
+                  ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-500 border-yellow-100 text-stone-950 shadow-[0_0_20px_rgba(253,224,71,0.95)] scale-95'
+                  : 'bg-transparent border-[#d4963e] text-amber-200 hover:border-yellow-300 active:bg-amber-400 active:text-stone-950'
+              }`}
               title="Decrease Bet"
             >
               <Minus className="w-6.5 h-6.5 sm:w-7.5 sm:h-7.5 stroke-[3.5]" />
             </button>
           </div>
 
-          {/* CENTER: GRAND SPIN BUTTON (DIPERBESAR PROPORSIONAL) */}
-          <div className="flex items-center justify-center shrink-0 px-2 sm:px-3">
-            <button
+          {/* CENTER: GRAND SPIN BUTTON WITH FULL BODY ROTATION & SMOKE AURA */}
+          <div className="relative flex items-center justify-center shrink-0 px-2 sm:px-3 overflow-visible">
+            {/* 6 Kepulan Asap Abu-Hangat di Sekeliling Tombol Spin (Aktif saat isSpinning) */}
+            {isSpinning && (
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 overflow-visible">
+                {[
+                  { angle: 0, rad: 0, dist: 30, size: 20, delay: 0 },
+                  { angle: 60, rad: Math.PI / 3, dist: 34, size: 24, delay: 0.2 },
+                  { angle: 120, rad: (2 * Math.PI) / 3, dist: 28, size: 18, delay: 0.4 },
+                  { angle: 180, rad: Math.PI, dist: 32, size: 22, delay: 0.6 },
+                  { angle: 240, rad: (4 * Math.PI) / 3, dist: 36, size: 24, delay: 0.8 },
+                  { angle: 300, rad: (5 * Math.PI) / 3, dist: 30, size: 16, delay: 1.0 },
+                ].map((puff, pIdx) => (
+                  <motion.div
+                    key={`spin_smoke_${pIdx}`}
+                    initial={{
+                      x: Math.cos(puff.rad) * 45,
+                      y: Math.sin(puff.rad) * 45,
+                      scale: 0.6,
+                      opacity: 0.35,
+                    }}
+                    animate={{
+                      x: Math.cos(puff.rad) * (45 + puff.dist),
+                      y: Math.sin(puff.rad) * (45 + puff.dist) - 10,
+                      scale: [0.6, 1.3, 1.6],
+                      opacity: [0.35, 0.2, 0],
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Infinity,
+                      delay: puff.delay,
+                      ease: 'easeOut',
+                    }}
+                    className="absolute rounded-full bg-radial from-[#d6cfc4] to-[#8a8176] blur-[6px] pointer-events-none"
+                    style={{ width: `${puff.size}px`, height: `${puff.size}px` }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* SELURUH BADAN TOMBOL BERPUTAR 360 DERAJAT SELAMA SPIN */}
+            <motion.button
               disabled={isSpinning}
               onClick={(e) => {
                 e.stopPropagation();
+                sound.playPing();
                 onSpin();
               }}
-              className="relative flex items-center justify-center w-26 h-26 sm:w-31 sm:h-31 md:w-34 md:h-34 rounded-full bg-gradient-to-b from-[#7a3c14] via-[#4a230b] to-[#1e0d04] border-[4px] border-[#f0b254] shadow-[0_12px_36px_rgba(0,0,0,0.95),inset_0_2px_14px_rgba(255,255,255,0.45),0_0_28px_rgba(240,178,84,0.55)] transition-all overflow-hidden select-none hover:brightness-115 active:scale-95 cursor-pointer touch-manipulation"
+              animate={{
+                rotate: isSpinning ? 360 : 0,
+              }}
+              transition={{
+                rotate: isSpinning
+                  ? {
+                      repeat: Infinity,
+                      duration: isTurbo ? 0.5 : 0.9,
+                      ease: 'linear',
+                    }
+                  : {
+                      duration: 0.4,
+                      ease: 'easeOut',
+                    },
+              }}
+              className="relative flex items-center justify-center w-26 h-26 sm:w-31 sm:h-31 md:w-34 md:h-34 rounded-full bg-gradient-to-b from-[#7a3c14] via-[#4a230b] to-[#1e0d04] border-[4px] border-[#f0b254] shadow-[0_12px_36px_rgba(0,0,0,0.95),inset_0_2px_14px_rgba(255,255,255,0.45),0_0_28px_rgba(240,178,84,0.55)] select-none hover:brightness-115 active:scale-95 cursor-pointer touch-manipulation z-10"
               title={t.spin}
             >
               {/* Outer Inlay Gold Ring */}
@@ -372,22 +447,39 @@ export const WildBountyControls: React.FC<WildBountyControlsProps> = ({
               {/* Subtle Vignette Overlay for Skull Depth */}
               <div className="absolute inset-0 rounded-full bg-radial from-transparent via-[#200e05]/30 to-[#100602]/70 pointer-events-none" />
 
-              {/* FOREGROUND CONTROLS OVER BISON SKULL */}
+              {/* FOREGROUND CONTROLS OVER BISON SKULL: COUNTER-ROTATE AUTO TEXT/NUMBERS TO STAY UPRIGHT */}
               <div className="relative z-10 flex flex-col items-center justify-center">
                 {autoSpinsRemaining > 0 ? (
-                  // In Auto Spin Mode
-                  <div className="flex flex-col items-center justify-center animate-in zoom-in-75">
+                  // In Auto Spin Mode: Counter-rotate text & numbers so they stay upright
+                  <motion.div
+                    animate={{
+                      rotate: isSpinning ? -360 : 0,
+                    }}
+                    transition={{
+                      rotate: isSpinning
+                        ? {
+                            repeat: Infinity,
+                            duration: isTurbo ? 0.5 : 0.9,
+                            ease: 'linear',
+                          }
+                        : {
+                            duration: 0.4,
+                            ease: 'easeOut',
+                          },
+                    }}
+                    className="flex flex-col items-center justify-center animate-in zoom-in-75"
+                  >
                     <span className="text-[10px] sm:text-[11px] font-western font-bold text-amber-300 uppercase tracking-wider drop-shadow">
                       {t.auto}
                     </span>
                     <span className="text-2xl sm:text-3xl md:text-4xl font-western font-black text-amber-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]">
                       {autoSpinsRemaining}
                     </span>
-                  </div>
+                  </motion.div>
                 ) : isSpinning ? (
-                  // Active Spinning Spinner with Rotating Arrows
+                  // Active Spinning Spinner
                   <div className="flex items-center justify-center">
-                    <RotateCcw className="w-11 h-11 sm:w-13 sm:h-13 text-amber-300 animate-spin stroke-[3] drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]" />
+                    <RotateCcw className="w-11 h-11 sm:w-13 sm:h-13 text-amber-300 stroke-[3] drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]" />
                   </div>
                 ) : (
                   // Idle Circulating Double Curved Arrows
@@ -396,23 +488,57 @@ export const WildBountyControls: React.FC<WildBountyControlsProps> = ({
                   </div>
                 )}
               </div>
-            </button>
+            </motion.button>
           </div>
 
           {/* RIGHT CLUSTER: Plus (+) & Auto Spin - DIPERBESAR & TETAP SEJAJAR */}
           <div className="flex items-center justify-start gap-3.5 sm:gap-5 pl-3 sm:pl-4 md:pl-5">
             {/* Plus Button (+) */}
-            <button
+            <motion.button
+              type="button"
+              tabIndex={-1}
               disabled={isSpinning || bet >= 1228800}
+              whileTap={isSpinning || bet >= 1228800 ? undefined : { scale: 0.92 }}
+              whileHover={isSpinning || bet >= 1228800 ? undefined : { filter: 'brightness(1.15)' }}
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                (e.currentTarget as HTMLButtonElement)?.blur();
+                if (isSpinning) return;
                 handleIncreaseWithSound();
               }}
-              className="flex items-center justify-center w-13.5 h-13.5 sm:w-15.5 sm:h-15.5 rounded-full bg-gradient-to-b from-[#3a2010] to-[#1a0e07] border-2 border-[#d4963e] text-amber-200 hover:brightness-115 active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-xl touch-manipulation select-none"
+              onPointerDown={(e) => {
+                if (isSpinning) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }
+              }}
+              onTouchStart={(e) => {
+                if (isSpinning) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }
+              }}
+              onFocus={(e) => {
+                (e.currentTarget as HTMLButtonElement)?.blur();
+              }}
+              className={`flex items-center justify-center w-13.5 h-13.5 sm:w-15.5 sm:h-15.5 rounded-full border-2 transition-all shadow-xl touch-manipulation select-none ${
+                isPlusActive
+                  ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-500 border-yellow-100 text-stone-950 shadow-[0_0_20px_rgba(253,224,71,0.95)] scale-95'
+                  : 'bg-transparent border-[#d4963e] text-amber-200 hover:border-yellow-300 active:bg-amber-400 active:text-stone-950'
+              } ${
+                isSpinning || bet >= 1228800
+                  ? 'pointer-events-none opacity-40'
+                  : 'cursor-pointer'
+              }`}
+              style={{
+                pointerEvents: isSpinning ? 'none' : undefined,
+                transform: 'translateZ(0)',
+              }}
               title="Increase Bet"
             >
-              <Plus className="w-6.5 h-6.5 sm:w-7.5 sm:h-7.5 stroke-[3.5]" />
-            </button>
+              <Plus className="w-6.5 h-6.5 sm:w-7.5 sm:h-7.5 stroke-[3.5] pointer-events-none" />
+            </motion.button>
 
             {/* Auto Spin Button */}
             <button

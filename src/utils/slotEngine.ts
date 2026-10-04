@@ -8,28 +8,7 @@ import {
   WinningWay,
 } from '../types/slot';
 
-import cowgirlWildImg from '../assets/images/cowgirl_wild.png';
-import outlawBanditImg from '../assets/images/outlaw_bandit.png';
-import goldBarsScatterImg from '../assets/images/gold_bars_scatter.png';
-import revolversHolsterImg from '../assets/images/revolvers_holster.png';
-import whiskeyDecanterImg from '../assets/images/whiskey_decanter.png';
-import purpleCowboyHatImg from '../assets/images/purple_cowboy_hat.png';
-import letterAImg from '../assets/images/letter_a.png';
-import letterKImg from '../assets/images/letter_k.png';
-import letterQImg from '../assets/images/letter_q.png';
-import letterJImg from '../assets/images/letter_j.png';
-
-// 10 Original Game Asset PNGs
-export const COWGIRL_WILD_IMG = cowgirlWildImg;
-export const OUTLAW_BANDIT_IMG = outlawBanditImg;
-export const GOLD_BARS_SCATTER_IMG = goldBarsScatterImg;
-export const REVOLVERS_HOLSTER_IMG = revolversHolsterImg;
-export const WHISKEY_DECANTER_IMG = whiskeyDecanterImg;
-export const PURPLE_COWBOY_HAT_IMG = purpleCowboyHatImg;
-export const LETTER_A_IMG = letterAImg;
-export const LETTER_K_IMG = letterKImg;
-export const LETTER_Q_IMG = letterQImg;
-export const LETTER_J_IMG = letterJImg;
+import { SYMBOL_ART_MAP } from '../components/SymbolArt';
 
 // Exact 3-4-5-5-4-3 Shield Grid: 24 tiles total
 export const NUM_COLUMNS = 6;
@@ -49,7 +28,7 @@ export const SYMBOLS: Record<SymbolId, SlotSymbol> = {
     payouts: [0, 0, 0], // Wild substitutes for the regular symbol with highest count
     isWild: true,
     color: '#F59E0B',
-    image: COWGIRL_WILD_IMG,
+    art: SYMBOL_ART_MAP.WILD,
   },
   SCATTER: {
     id: 'SCATTER',
@@ -57,63 +36,63 @@ export const SYMBOLS: Record<SymbolId, SlotSymbol> = {
     payouts: [0, 0, 0], // 3+ Scatters award 10 Free Spins
     isScatter: true,
     color: '#EF4444',
-    image: GOLD_BARS_SCATTER_IMG,
+    art: SYMBOL_ART_MAP.SCATTER,
   },
   BANDIT: {
     id: 'BANDIT',
     name: 'Outlaw Bandit',
     payouts: [8, 20, 40], // 6-7, 8-9, 10+
     color: '#EF4444',
-    image: OUTLAW_BANDIT_IMG,
+    art: SYMBOL_ART_MAP.BANDIT,
   },
   REVOLVERS: {
     id: 'REVOLVERS',
     name: 'Dual Revolvers',
     payouts: [4, 10, 20],
     color: '#F59E0B',
-    image: REVOLVERS_HOLSTER_IMG,
+    art: SYMBOL_ART_MAP.REVOLVERS,
   },
   HAT: {
     id: 'HAT',
     name: 'Cowboy Hat',
     payouts: [2.5, 6, 12],
     color: '#A855F7',
-    image: PURPLE_COWBOY_HAT_IMG,
+    art: SYMBOL_ART_MAP.HAT,
   },
   WHISKEY: {
     id: 'WHISKEY',
     name: 'Saloon Whiskey',
     payouts: [1.5, 4, 8],
     color: '#D97706',
-    image: WHISKEY_DECANTER_IMG,
+    art: SYMBOL_ART_MAP.WHISKEY,
   },
   A: {
     id: 'A',
     name: 'Golden Ace',
     payouts: [1.0, 2.0, 6],
     color: '#FBBF24',
-    image: LETTER_A_IMG,
+    art: SYMBOL_ART_MAP.A,
   },
   K: {
     id: 'K',
     name: 'Crimson King',
     payouts: [0.8, 1.5, 5],
     color: '#DC2626',
-    image: LETTER_K_IMG,
+    art: SYMBOL_ART_MAP.K,
   },
   Q: {
     id: 'Q',
     name: 'Sage Queen',
     payouts: [0.6, 1.2, 4],
     color: '#10B981',
-    image: LETTER_Q_IMG,
+    art: SYMBOL_ART_MAP.Q,
   },
   J: {
     id: 'J',
     name: 'Frontier Jack',
     payouts: [0.4, 0.8, 3],
     color: '#3B82F6',
-    image: LETTER_J_IMG,
+    art: SYMBOL_ART_MAP.J,
   },
 };
 

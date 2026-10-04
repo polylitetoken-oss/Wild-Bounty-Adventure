@@ -18,6 +18,7 @@ export interface SlotSymbol {
   isScatter?: boolean;
   color: string;
   image?: string;
+  art?: React.ComponentType<{ className?: string }>;
 }
 
 export interface GridTile {

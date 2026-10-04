@@ -108,7 +108,7 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
   }, [grid, isSpinEntering, isCascading]);
 
   return (
-    <div className="relative w-full max-w-[560px] sm:max-w-[580px] mx-auto select-none px-0.5 overflow-hidden">
+    <div className="relative w-full max-w-[560px] sm:max-w-[580px] mx-auto select-none px-0.5 overflow-visible">
       {/* MAIN WILD BOUNTY WOODEN BOARD CONTAINER - BACKGROUND COKLAT TRANSPARAN */}
       <div
         className={`relative w-full transition-all duration-300 ${
@@ -298,11 +298,16 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
             const colWidthPct = (PITCH_X / SVG_WIDTH) * 100;
             const tileHeightPct = (PITCH_Y / SVG_HEIGHT) * 100;
 
-            // NORMAL MODE: JATUH BERURUTAN DARI KIRI KE KANAN (colIdx * 0.08s) DENGAN BOBOT NATURAL
-            // TURBO MODE: JATUH SEREMPAK SEMUA KOLOM DALAM DURASI INSTAN (0.15s)
-            const spinDropDuration = isTurbo ? 0.15 : 0.52;
-            const spinColDelay = isTurbo ? 0 : colIdx * 0.08; // Berurutan kiri ke kanan di Normal Mode
-            const cascadeDropDuration = isTurbo ? 0.11 : 0.38;
+            // NORMAL MODE: TUNGGAL RANGKAIAN WAVE/BATCH DROPPING (KOLOM 1 → 2 → 3 → 4 → 5 → 6 DENGAN STAGGER 0.12s)
+            // 1. Simbol lama keluar menghilang cepat (0.15s) saat giliran kolom mulai
+            // 2. Seluruh kolom meluncur dalam satu gelombang mengalir kiri -> kanan (0.65s)
+            // 3. Mendarat rapi sekuensial tanpa menimpa/overlap
+            const spinDropDuration = isTurbo ? 0.42 : 0.65;
+            const spinColDelay = isTurbo ? 0 : colIdx * 0.12;
+            const oldExitDuration = isTurbo ? 0.32 : 0.15;
+            const oldExitDelay = isTurbo ? 0 : colIdx * 0.12;
+            const cascadeDropDuration = isTurbo ? 0.38 : 0.65;
+            const cascadeColDelay = isTurbo ? 0 : colIdx * 0.08;
 
             return (
               <div
@@ -313,7 +318,7 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
                   width: `${colWidthPct}%`,
                 }}
               >
-                {/* 1. SIMBOL SEBELUMNYA DI BINGKAI: TURUN KE BAWAH KELUAR BINGKAI SECARA BERURUTAN */}
+                {/* 1. SIMBOL SEBELUMNYA DI BINGKAI: TURUN KE BAWAH KELUAR BINGKAI */}
                 {isSpinEntering &&
                   prevColTiles.map((oldTile) => {
                     const visualY = PAD_Y + offsetY + oldTile.row * PITCH_Y;
@@ -324,9 +329,9 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
                         initial={{ y: 0, opacity: 1 }}
                         animate={{ y: totalDropDistance + 60, opacity: 0.95 }}
                         transition={{
-                          duration: isTurbo ? 0.12 : 0.44,
-                          delay: spinColDelay,
-                          ease: isTurbo ? 'easeOut' : [0.45, 0, 1, 1], // Akselerasi gravitasi jatuh ke bawah
+                          duration: oldExitDuration,
+                          delay: oldExitDelay,
+                          ease: isTurbo ? 'easeOut' : [0.45, 0, 1, 1], // Akselerasi gravitasi
                         }}
                         className="absolute left-0 right-0 w-full flex items-center justify-center z-10 pointer-events-none"
                         style={{
@@ -346,11 +351,10 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
                     );
                   })}
 
-                {/* 2. SIMBOL BARU YANG TURUN MENGISI BINGKAI SECARA BERURUTAN DI NORMAL MODE */}
+                {/* 2. SIMBOL BARU YANG TURUN MENGISI BINGKAI */}
                 {colTiles.map((tile) => {
                   const isWinning = winningTileIds.includes(tile.id);
                   const isScatter = tile.symbol === 'SCATTER';
-                  const isWild = tile.symbol === 'WILD';
 
                   // Exact cell vertical alignment
                   const visualY = PAD_Y + offsetY + tile.row * PITCH_Y;
@@ -378,17 +382,17 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
                         opacity: 1,
                       }}
                       animate={{
-                        // Normal Mode: Jatuh berbobot & santai → akselerasi gravitasi → sedikit bounce/settle saat mendarat (4.0px → -1.0px → 0px)
-                        // Turbo Mode: Super cepat & instan → settle minimal (0.8px → 0px)
+                        // Normal Mode: Jatuh pelan berbobot & natural (0.95s) → pantulan mendarat 7px ([initialY, 7.0, -1.8, 0])
+                        // Turbo Mode: Lebih cepat dari normal (0.42s) → pantulan mendarat kecil ([initialY, 2.0, 0])
                         y: hasDrop
                           ? isTurbo
-                            ? [initialY, 0.8, 0]
-                            : [initialY, 4.0, -1.0, 0]
+                            ? [initialY, 2.0, 0]
+                            : [initialY, 7.0, -1.8, 0]
                           : 0,
-                        scale: isSpecialOverlap
-                          ? 1.15
-                          : isWinning
-                          ? 1.05
+                        scale: isWinning
+                          ? 1.32
+                          : isSpecialOverlap
+                          ? 1.18
                           : 1,
                         opacity: 1,
                       }}
@@ -396,15 +400,15 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
                         isSpinEntering
                           ? {
                               duration: spinDropDuration,
-                              delay: spinColDelay, // Normal: Berurutan kiri ke kanan, Turbo: Serentak
-                              times: isTurbo ? [0, 0.88, 1] : [0, 0.78, 0.90, 1],
-                              ease: isTurbo ? 'easeOut' : [0.25, 1, 0.5, 1],
+                              delay: spinColDelay, // Normal: Berurutan kiri ke kanan (0.14s), Turbo: Serentak (0)
+                              times: isTurbo ? [0, 0.74, 1] : [0, 0.78, 0.90, 1],
+                              ease: isTurbo ? [0.45, 0, 1, 1] : [0.25, 1, 0.5, 1],
                             }
                           : isCascading && hasDrop
                           ? {
                               duration: cascadeDropDuration,
-                              delay: 0,
-                              times: isTurbo ? [0, 0.88, 1] : [0, 0.78, 0.90, 1],
+                              delay: cascadeColDelay,
+                              times: isTurbo ? [0, 0.74, 1] : [0, 0.78, 0.90, 1],
                               ease: isTurbo ? 'easeOut' : [0.25, 1, 0.5, 1],
                             }
                           : isWinning
@@ -424,9 +428,10 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
                         transform: 'translate3d(0, 0, 0)',
                       }}
                     >
-                      {/* BULLET HIT HOLE & SOFT SMOKE EFFECT (BEFORE & DURING BREAK) */}
+                      {/* BULLET HIT HOLE, 8 SHARDS & SOFT SMOKE EFFECT */}
                       {isWinning && winAnimStage !== 'IDLE' && (
                         <BulletHitEffect
+                          symbolId={tile.symbol}
                           isTurbo={isTurbo}
                           stage={winAnimStage === 'SHATTERING' ? 'SHATTERING' : winAnimStage === 'HOLD' ? 'HOLD' : 'EXPANDING'}
                         />
@@ -448,6 +453,7 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
                           hasWildWin={hasWildWin}
                           isGoldFramed={tile.isGoldFramed}
                           transformedToWild={tile.transformedToWild}
+                          isSettled={!tile.isNew && !hasDrop && !isSpinEntering}
                         />
                       </div>
                     </motion.div>
@@ -458,84 +464,47 @@ export const WildBountyReels: React.FC<WildBountyReelsProps> = ({
           })}
         </div>
 
-        {/* 3. FOREGROUND LAYER (z-50): DUA REVOLVER 3D & CORNER BRACKETS DI LAYER PALING DEPAN SEHINGGA SIMBOL TIDAK MENIMPA PISTOL */}
+        {/* 3. FOREGROUND LAYER (z-50): DUA REVOLVER 3D DI LAYER PALING DEPAN SEHINGGA SIMBOL TIDAK MENIMPA PISTOL */}
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           className="absolute inset-0 w-full h-full z-50 pointer-events-none select-none overflow-visible"
           preserveAspectRatio="none"
         >
-          <defs>
-            <linearGradient id="fgBronzeFrameGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#d4963e" />
-              <stop offset="50%" stopColor="#8c471a" />
-              <stop offset="100%" stopColor="#451a03" />
-            </linearGradient>
-          </defs>
-
           {/* DUA REVOLVER 3D DI KIRI DAN KANAN BINGKAI (LAYER TERDEPAN z-50) */}
-          {/* Revolver Kiri: Laras menutupi bingkai atas (-16.43°), gagang atas & hammer menutupi sudut kiri atas bingkai (24, 108) di depan simbol */}
+          {/* Revolver Kiri: Titik tengah gagang tepat di (24, 108), laras mengikuti atap bingkai ke puncak (336, 16) */}
           <g
             style={{
               filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.98)) drop-shadow(0 2px 6px rgba(0,0,0,1))',
             }}
-            transform="translate(336, 16) rotate(-16.43) translate(-390, -42)"
+            transform="translate(24, 108) rotate(-5.42) translate(-46, -81.5)"
           >
             <image
               href={westernRevolver3dImg}
               x="0"
               y="0"
-              width="390"
-              height="175"
+              width="368"
+              height="161"
               preserveAspectRatio="none"
             />
           </g>
 
-          {/* Revolver Kanan: Laras menutupi bingkai atas (+16.43°), gagang atas & hammer menutupi sudut kanan atas bingkai (648, 108) di depan simbol */}
+          {/* Revolver Kanan: Titik tengah gagang tepat di (648, 108) simetris, laras mengikuti atap bingkai ke puncak (336, 16) */}
           <g
             style={{
               filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.98)) drop-shadow(0 2px 6px rgba(0,0,0,1))',
             }}
-            transform="translate(336, 16) scale(-1, 1) rotate(-16.43) translate(-390, -42)"
+            transform="translate(648, 108) scale(-1, 1) rotate(-5.42) translate(-46, -81.5)"
           >
             <image
               href={westernRevolver3dImg}
               x="0"
               y="0"
-              width="390"
-              height="175"
+              width="368"
+              height="161"
               preserveAspectRatio="none"
             />
-          </g>
-
-          {/* Solid Bronze Bolster Brackets securing Gagang Revolver to Left & Right Frame Corners */}
-          <g transform="translate(24, 110)">
-            <ellipse rx="7" ry="14" fill="url(#fgBronzeFrameGrad)" stroke="#120602" strokeWidth="1.5" />
-            <circle cy="-5" r="2.2" fill="#fffbeb" />
-            <circle cy="5" r="2.2" fill="#fffbeb" />
-          </g>
-          <g transform="translate(648, 110)">
-            <ellipse rx="7" ry="14" fill="url(#fgBronzeFrameGrad)" stroke="#120602" strokeWidth="1.5" />
-            <circle cy="-5" r="2.2" fill="#fffbeb" />
-            <circle cy="5" r="2.2" fill="#fffbeb" />
           </g>
         </svg>
-
-        {/* 4. TOP STATUS BADGE (z-50): SISA SPIN or PAY ANYWHERE */}
-        <div className="absolute top-6 sm:top-7 left-0 right-0 z-50 flex items-center justify-center pointer-events-none">
-          {isFreeSpins && remainingFreeSpins > 0 ? (
-            <div className="px-3.5 py-0.5 rounded-full bg-gradient-to-b from-amber-500 via-amber-700 to-amber-950 border border-yellow-300 shadow-[0_2px_12px_rgba(245,197,66,0.9)] animate-pulse">
-              <span className="text-[10px] text-yellow-100 font-western font-black tracking-wider uppercase drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                ★ SISA SPIN: {remainingFreeSpins} ★
-              </span>
-            </div>
-          ) : (
-            <div className="px-3 py-0.5 rounded-full bg-gradient-to-b from-[#2a1408]/90 to-[#120703]/90 border border-amber-500/50 shadow-md">
-              <span className="text-[9px] text-amber-300/90 font-western font-bold tracking-widest uppercase">
-                PAY ANYWHERE
-              </span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

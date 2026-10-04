@@ -36,6 +36,7 @@ import {
 import { sound } from './utils/soundEngine';
 import { Language, TRANSLATIONS } from './utils/translations';
 import { WildBountyReels, WinAnimStage } from './components/WildBountyReels';
+import { HatArt } from './components/SymbolArt';
 import { HangingMultiplierSign } from './components/HangingMultiplierSign';
 import { HorseshoeMessageBanner } from './components/HorseshoeMessageBanner';
 import { WildBountyControls } from './components/WildBountyControls';
@@ -132,10 +133,12 @@ export default function App() {
   const [isCascading, setIsCascading] = useState<boolean>(false);
 
   // Controls & Options
+  const [activeMultiplierDrop, setActiveMultiplierDrop] = useState<{ value: number; id: string } | null>(null);
   const [isTurbo, setIsTurbo] = useState<boolean>(false);
   const [autoSpinsRemaining, setAutoSpinsRemaining] = useState<number>(0);
   const autoRemainingRef = useRef<number>(0);
   const scatterHitStepRef = useRef<number>(0);
+  const isSpinningRef = useRef<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
   // Provably Fair Real RNG Seeds
@@ -158,6 +161,7 @@ export default function App() {
 
   // Bet Stepping Handlers (Min 400 -> 600 (+200) -> x2 steps up to 1.2M)
   const handleIncreaseBet = () => {
+    if (isSpinningRef.current || isSpinning || isCascading) return;
     setBet((prev) => {
       const idx = BET_STEPS.indexOf(prev);
       if (idx !== -1 && idx < BET_STEPS.length - 1) {
@@ -170,6 +174,7 @@ export default function App() {
   };
 
   const handleDecreaseBet = () => {
+    if (isSpinningRef.current || isSpinning || isCascading) return;
     setBet((prev) => {
       const idx = BET_STEPS.indexOf(prev);
       if (idx > 0) {
@@ -206,7 +211,10 @@ export default function App() {
     if (winCelebrationResolverRef.current) {
       const resolve = winCelebrationResolverRef.current;
       winCelebrationResolverRef.current = null;
-      resolve();
+      // Tunggu hingga animasi popup benar-benar selesai & hilang sempurna dari layar sebelum melanjutkan cascade
+      setTimeout(() => {
+        resolve();
+      }, 300);
     }
   };
 
@@ -335,7 +343,8 @@ export default function App() {
 
   // CORE SPIN FUNCTION
   const handleSpin = async () => {
-    if (isSpinning || isCascading || showScatterCongrats) return;
+    if (isSpinningRef.current || isSpinning || isCascading || showScatterCongrats) return;
+    isSpinningRef.current = true;
     if (!isFreeSpins && balance < bet) {
       autoRemainingRef.current = 0;
       setAutoSpinsRemaining(0);
@@ -357,7 +366,7 @@ export default function App() {
       setStatusMessage(`${t.freeSpin} ${currentSpinNum} / ${totalFreeSpinsSession}`);
     } else {
       setBalance((prev) => prev - bet);
-      setStatusMessage(t.payAnywhere);
+      setStatusMessage(language === 'ID' ? 'SEMOGA BERUNTUNG!' : 'GOOD LUCK!');
     }
 
     // PERBAIKAN 7: Reset scatter hit step count for this spin
@@ -385,46 +394,43 @@ export default function App() {
     setGrid(enteringGrid);
 
     // Landing timing synchronized with visual drop cadence:
-    // Mode Turbo: Turun serentak super cepat, mendarat pada 150ms
-    // Mode Normal: Jatuh berurutan dari kiri ke kanan (delay c * 80ms + descent 440ms)
+    // Mode Turbo: Turun serentak (0.42s), mendarat 380ms + jeda singkat 200ms
+    // Mode Normal: Rangkaian mengalir Kolom 1 → 2 → 3 → 4 → 5 → 6 (stagger 120ms per kolom, landing 650ms)
     if (isTurbo) {
       setTimeout(() => {
         sound.playReelStop(false);
-        let turboScatters = 0;
-        enteringGrid.forEach((col) => {
-          col.forEach((t) => {
-            if (t.isNew && t.symbol === 'SCATTER') turboScatters++;
-          });
-        });
-        for (let s = 0; s < turboScatters; s++) {
-          sound.playCashRegisterCring(scatterHitStepRef.current);
-          scatterHitStepRef.current = Math.min(6, scatterHitStepRef.current + 1);
-        }
-      }, 150);
+      }, 380);
     } else {
       [0, 1, 2, 3, 4, 5].forEach((c) => {
-        const colScatters = enteringGrid[c].filter(
-          (t) => t.isNew && t.symbol === 'SCATTER'
-        ).length;
-        const colLandingTime = c * 80 + 440;
+        const colLandingTime = c * 120 + 650;
         setTimeout(() => {
           sound.playReelStop(false);
-          for (let s = 0; s < colScatters; s++) {
-            sound.playCashRegisterCring(scatterHitStepRef.current);
-            scatterHitStepRef.current = Math.min(6, scatterHitStepRef.current + 1);
-          }
         }, colLandingTime);
       });
     }
 
-    // Allow full smooth descent animation to finish settling seamlessly
-    const settleDuration = isTurbo ? 200 : 920;
+    // Allow full smooth descent animation to finish settling:
+    // Mode Turbo: Mendarat 380ms + jeda singkat 200ms = 580ms sebelum proses berikutnya
+    // Mode Normal: Kolom 6 (c=5) mendarat pada 1250ms + 250ms pause = 1500ms
+    const settleDuration = isTurbo ? 580 : 1500;
     setTimeout(() => {
       // Clear isNew flag and start cascade evaluation
       const settledGrid: GridTile[][] = enteringGrid.map((colTiles) =>
         colTiles.map((t) => ({ ...t, isNew: false, dropRows: 0 }))
       );
       setGrid(settledGrid);
+
+      // Suara Scatter HANYA bunyi ketika Simbol Scatter membesar setelah mendarat
+      let landedScatters = 0;
+      settledGrid.forEach((col) => {
+        col.forEach((t) => {
+          if (t.symbol === 'SCATTER') landedScatters++;
+        });
+      });
+      if (landedScatters > 0) {
+        sound.playCashRegisterCring(scatterHitStepRef.current);
+        scatterHitStepRef.current = Math.min(6, scatterHitStepRef.current + 1);
+      }
 
       const result = executeFullCascadeSpin(
         settledGrid,
@@ -455,6 +461,7 @@ export default function App() {
     const playNextStep = async () => {
       if (stepIndex >= steps.length) {
         // All cascades of this spin complete
+        isSpinningRef.current = false;
         setIsSpinning(false);
         setIsCascading(false);
         setWinningTileIds([]);
@@ -536,7 +543,7 @@ export default function App() {
           return;
         }
 
-        // Normal Auto-Spin loop: Jalankan setelah popup selesai
+        // Normal Auto-Spin loop: Jalankan setelah seluruh efek pecahan & settle selesai
         if (!isFreeSpins && autoRemainingRef.current > 0) {
           setTimeout(() => {
             if (autoRemainingRef.current > 0 && balance >= bet) {
@@ -545,7 +552,7 @@ export default function App() {
               autoRemainingRef.current = 0;
               setAutoSpinsRemaining(0);
             }
-          }, isTurbo ? 200 : 700);
+          }, isTurbo ? 450 : 800);
         }
 
         return;
@@ -560,11 +567,12 @@ export default function App() {
         setIsCascading(true);
         setWinningTileIds(currentStep.winningTileIds);
 
-        // Rangkaian 4 Suara Tembakan Nyata: Tembakan 1 → Tembakan 2 → Tembakan 3 → Tembakan 4
-        sound.playGunshot(0);
-        setTimeout(() => sound.playGunshot(1), isTurbo ? 45 : 130);
-        setTimeout(() => sound.playGunshot(2), isTurbo ? 90 : 260);
-        setTimeout(() => sound.playGunshot(3), isTurbo ? 135 : 390);
+        if (currentStep.multiplier > 1) {
+          setActiveMultiplierDrop({
+            value: currentStep.multiplier,
+            id: `${stepIndex}_${Date.now()}`,
+          });
+        }
 
         const clusterParts = currentStep.winningWays.map((w) => `${w.count} ${w.symbol}`).join(' + ');
         if (isFreeSpins && currentStep.multiplier > 1) {
@@ -575,34 +583,41 @@ export default function App() {
           setStatusMessage(`${clusterParts} +${currency === 'IDR' ? 'Rp ' : '$'}${currentStep.stepWin.toLocaleString()}`);
         }
 
-        // (a) 4 SHOT MARKS (Shot 1 → Shot 2 → Shot 3 → Shot 4)
+        // URUTAN WAJIB:
+        // 1. Simbol membesar dulu diiringi suara gitar (EXPANDING)
         setWinAnimStage('EXPANDING');
-        const expandTime = isTurbo ? 200 : 540;
+        sound.playGuitarStrum();
+
+        const expandTime = isTurbo ? 180 : 450;
 
         setTimeout(async () => {
-          // (b) SHORT PAUSE: 4 lubang peluru mengepul asap sebelum meledak
+          // 2. Simbol tetap besar -> TEMBAK + LUBANG PELURU MUNCUL
           setWinAnimStage('HOLD');
 
-          // 1. WIN POPUP HARUS MENGHENTIKAN SPIN:
-          // Jika step ini menghasilkan Big Win (>= 10x bet):
-          // Pause cascade dan tunggu hingga Win Popup selesai terlebih dahulu!
-          const stepWinRatio = currentStep.stepWin / bet;
-          if (stepWinRatio >= 10) {
-            let stepTier: WinTier = 'BIG_WIN';
-            if (stepWinRatio >= 100) stepTier = 'EPIC_WIN';
-            else if (stepWinRatio >= 50) stepTier = 'MEGA_WIN';
-            else if (stepWinRatio >= 25) stepTier = 'SUPER_BIG_WIN';
+          // Suara tembakan dilepaskan setelah simbol sudah besar
+          sound.playGunshot(0);
+          setTimeout(() => sound.playGunshot(1), isTurbo ? 35 : 100);
+          setTimeout(() => sound.playGunshot(2), isTurbo ? 70 : 200);
+          setTimeout(() => sound.playGunshot(3), isTurbo ? 105 : 300);
 
-            hasShownMidCascadeWinPopup = true;
-            await showWinPopupAndWait(stepTier, currentStep.stepWin);
-          }
+          const shootingHolesTime = isTurbo ? 200 : 480;
 
-          const holdTime = isTurbo ? 80 : 200;
+          setTimeout(async () => {
+            // WIN POPUP HARUS MENGHENTIKAN SPIN jika step ini menghasilkan Big Win (>= 10x bet):
+            const stepWinRatio = currentStep.stepWin / bet;
+            if (stepWinRatio >= 10) {
+              let stepTier: WinTier = 'BIG_WIN';
+              if (stepWinRatio >= 100) stepTier = 'EPIC_WIN';
+              else if (stepWinRatio >= 50) stepTier = 'MEGA_WIN';
+              else if (stepWinRatio >= 25) stepTier = 'SUPER_BIG_WIN';
 
-          setTimeout(() => {
-            // (c) EXPLOSION: Simbol pecah menjadi koin emas & serpihan + asap mesiu
+              hasShownMidCascadeWinPopup = true;
+              await showWinPopupAndWait(stepTier, currentStep.stepWin);
+            }
+
+            // 3. BARU SETELAH ITU SIMBOL PECAH (SHATTERING)
             setWinAnimStage('SHATTERING');
-            const shatterTime = isTurbo ? 180 : 420;
+            const shatterTime = isTurbo ? 250 : 450;
 
             setTimeout(() => {
               // (c2) JEDA RUANG KOSONG (EMPTY GAP):
@@ -633,7 +648,7 @@ export default function App() {
               setWinAnimStage('IDLE');
               setHasWildWin(false);
 
-              const pauseAfterShatter = isTurbo ? 50 : 160;
+              const pauseAfterShatter = isTurbo ? 120 : 200;
 
               setTimeout(() => {
                 // (d) NEW SYMBOL DROP: SIMBOL BARU & BERGESER MULAI TURUN DARI ATAS MENGISI RUANG KOSONG
@@ -675,25 +690,8 @@ export default function App() {
                   sound.playCoin();
                 }
 
-                // Suara scatter saat mendarat pada cascade tumble
-                const tumbleDuration = isTurbo ? 140 : 320;
-                setTimeout(() => {
-                  let scatterLanded = false;
-                  nextGrid.forEach((col) => {
-                    col.forEach((t) => {
-                      if (t.isNew && t.symbol === 'SCATTER') {
-                        scatterLanded = true;
-                      }
-                    });
-                  });
-                  if (scatterLanded) {
-                    sound.playCashRegisterCring(scatterHitStepRef.current);
-                    scatterHitStepRef.current = Math.min(6, scatterHitStepRef.current + 1);
-                  }
-                }, tumbleDuration);
-
-                // (e) SIMBOL MENDARAT PENUH + JEDA DIAM SEBELUM EVALUASI CASCADE BERIKUTNYA
-                const tumbleDropWait = isTurbo ? 180 : 540;
+                // (e) SIMBOL MENDARAT PENUH & SETTLE: Turbo 380ms, Normal 950ms
+                const tumbleDropWait = isTurbo ? 380 : 950;
                 setTimeout(() => {
                   const settled = runningGrid.map((colTiles) =>
                     colTiles.map((t) => ({ ...t, isNew: false, dropRows: 0 }))
@@ -701,12 +699,24 @@ export default function App() {
                   runningGrid = settled;
                   setGrid(settled);
 
+                  // Suara Scatter HANYA bunyi ketika Simbol Scatter membesar setelah mendarat
+                  let newSettledScatters = 0;
+                  settled.forEach((col) => {
+                    col.forEach((t) => {
+                      if (t.symbol === 'SCATTER') newSettledScatters++;
+                    });
+                  });
+                  if (newSettledScatters > 0) {
+                    sound.playCashRegisterCring(scatterHitStepRef.current);
+                    scatterHitStepRef.current = Math.min(6, scatterHitStepRef.current + 1);
+                  }
+
                   stepIndex++;
                   playNextStep();
                 }, tumbleDropWait);
               }, pauseAfterShatter);
             }, shatterTime);
-          }, holdTime);
+          }, shootingHolesTime);
         }, expandTime);
       } else {
         stepIndex++;
@@ -847,17 +857,23 @@ export default function App() {
         <div className="fixed inset-0 pointer-events-none z-10 border-4 border-amber-400/40 shadow-[inset_0_0_60px_rgba(245,197,66,0.3)] animate-pulse" />
       )}
 
-      {/* 4. COMPACT HEADER (Western Title ONLY) */}
-      <header className="relative z-30 px-3 py-1.5 bg-[#120804]/90 border-b border-[#523015] flex items-center justify-center backdrop-blur-sm max-w-[560px] sm:max-w-[580px] mx-auto w-full shrink-0">
-        <h1 className="font-western text-lg sm:text-xl font-black text-gold-gradient tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] text-center">
-          {t.title}
-        </h1>
+      {/* 4. COMPACT HEADER (Clean Title + Tilted Cowboy Hat, No Box/Container) */}
+      <header className="relative z-30 pt-2.5 pb-0 px-3 flex items-center justify-center max-w-[560px] sm:max-w-[580px] mx-auto w-full shrink-0 select-none pointer-events-none">
+        <div className="relative flex items-center justify-center gap-2">
+          <h1 className="font-western text-2xl sm:text-3xl md:text-4xl font-black text-gold-gradient tracking-wide drop-shadow-[0_4px_10px_rgba(0,0,0,0.98)] text-center">
+            {t.title}
+          </h1>
+          {/* Tilted 3D Cowboy Hat SVG on the Right */}
+          <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 transform rotate-12 -mt-1.5 drop-shadow-[0_3px_8px_rgba(0,0,0,0.95)]">
+            <HatArt className="w-full h-full object-contain pointer-events-none" />
+          </div>
+        </div>
       </header>
 
-      {/* 3. MAIN GAME CONTAINER (Expanded width approaching screen edges with balanced height) */}
-      <main className="relative z-20 flex-1 min-h-0 flex flex-col items-center justify-between sm:justify-evenly px-0.5 sm:px-1 py-0.5 max-w-[560px] sm:max-w-[580px] mx-auto w-full overflow-hidden">
-        {/* Top Hanging Wooden Multiplier Sign */}
-        <div className="w-full shrink-0">
+      {/* 3. MAIN GAME CONTAINER */}
+      <main className="relative z-20 flex-1 min-h-0 flex flex-col items-center justify-between sm:justify-evenly px-0.5 sm:px-1 pt-0 pb-0.5 max-w-[560px] sm:max-w-[580px] mx-auto w-full overflow-hidden">
+        {/* Top Hanging Wooden Multiplier Sign - Attached Directly Below Header Text */}
+        <div className="w-full shrink-0 -mt-0.5">
           <HangingMultiplierSign
             currentMultiplier={currentMultiplier}
             isFreeSpins={isFreeSpins}
@@ -891,15 +907,16 @@ export default function App() {
           )}
         </div>
 
-        {/* Plakat Status Message / Sisa Spin - TEPAT SEBAGAI PANGKUAN BINGKAI ATAS */}
+        {/* Plakat Status Message / Multiplier Board - TEPAT SEBAGAI PANGKUAN BINGKAI ATAS */}
         <div className="w-full shrink-0 relative flex items-center justify-center -mt-3.5 sm:-mt-4.5 z-20">
           <HorseshoeMessageBanner
             message={statusMessage}
-            isFreeSpins={isFreeSpins}
-            remainingFreeSpins={remainingFreeSpins}
+            currentMultiplier={currentMultiplier}
             currentWin={currentWin}
             currency={currency}
             language={language}
+            activeMultiplierDrop={activeMultiplierDrop}
+            onMultiplierImpact={() => {}}
           />
         </div>
 
